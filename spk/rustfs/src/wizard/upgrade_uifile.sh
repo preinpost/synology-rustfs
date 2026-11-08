@@ -26,7 +26,7 @@ cat <<EOW > "${SYNOPKG_TEMP_LOGFILE}"
       "items": [
          {
             "type": "textfield",
-            "desc": "Data shared folder. Keep the current value to continue using your existing data. If you change it, also update RUSTFS_VOLUMES in /var/packages/rustfs/var/environment-variables.",
+            "desc": "Data shared folder. Keep the current value to continue using your existing data. If you change it, RustFS uses the new folder after the upgrade; existing data is not moved.",
             "subitems": [
                {
                   "key": "wizard_data_directory",

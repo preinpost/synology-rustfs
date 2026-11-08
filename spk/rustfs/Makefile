@@ -1,6 +1,6 @@
 SPK_NAME = rustfs
 SPK_VERS = 1.0.4
-SPK_REV = 1
+SPK_REV = 2
 SPK_ICON = src/rustfs.png
 DSM_UI_DIR = app
 
@@ -13,7 +13,7 @@ UNSUPPORTED_ARCHS = $(PPC_ARCHS) $(ARMv5_ARCHS) $(ARMv7_ARCHS) $(ARMv7L_ARCHS) $
 MAINTAINER = synology-rustfs
 DESCRIPTION = RustFS is a high-performance, S3 compatible object storage server written in Rust. This package uses the official static musl binaries published by the RustFS project.
 DISPLAY_NAME = RustFS
-CHANGELOG = "Initial package of RustFS 1.0.4.<br/>Changelog: <a target=\"_blank\" href=\"https://github.com/rustfs/rustfs/releases/tag/1.0.4\">https://github.com/rustfs/rustfs/releases/tag/1.0.4</a>"
+CHANGELOG = "1.0.4-2: data folder always follows the wizard shared folder (RUSTFS_VOLUMES in environment-variables is ignored), writable data folder check before start, clearer uninstall wizard.<br/>Changelog: <a target=\"_blank\" href=\"https://github.com/rustfs/rustfs/releases/tag/1.0.4\">https://github.com/rustfs/rustfs/releases/tag/1.0.4</a>"
 HOMEPAGE = https://rustfs.com/
 LICENSE = Apache-2.0
 

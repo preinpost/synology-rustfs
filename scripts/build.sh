@@ -39,6 +39,8 @@ else
       "${SPKSRC_IMAGE}" sh -euc '
          rsync -a --delete --exclude /.git --exclude /distrib/ --exclude /packages/ \
             --exclude "work/" --exclude "work-*/" /src/spksrc/ /spksrc/
+         # spk work dirs are not rebuilt when only src files change (stale INFO/staging)
+         rm -rf /spksrc/spk/rustfs/work-*
          make -C /spksrc/spk/rustfs '"${targets}"'
          cp /spksrc/packages/rustfs_*.spk /dist/'
    ls -l "${ROOT}"/dist/*.spk

@@ -1,0 +1,16 @@
+[{
+  "step_title": "Uninstall RustFS",
+  "items": [{
+    "type": "singleselect",
+    "desc": "Keep or delete the package settings. <b>Your S3 data is never deleted by this wizard:</b> the data shared folder (buckets and the <code>.rustfs.sys</code> folder) stays on the volume with either choice. To remove it, delete the shared folder or its contents manually after uninstalling.",
+    "subitems": [{
+      "key": "wizard_keep_data",
+      "desc": "<b>Uninstall only.</b> Keep the configuration, access keys and logs (/var/packages/rustfs/var) for a future re-installation.",
+      "defaultValue": true
+    }, {
+      "key": "wizard_delete_data",
+      "desc": "<b style=\"color: red\">Erase all of the package data files. (Not Recoverable)</b> Deletes the configuration, access keys, installer settings and the service log (rustfs.log). Back up the log first if you need it. The S3 data in the shared folder is NOT deleted.",
+      "defaultValue": false
+    }]
+  }]
+}]

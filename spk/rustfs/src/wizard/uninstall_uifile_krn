@@ -1,0 +1,16 @@
+[{
+  "step_title": "RustFS 삭제",
+  "items": [{
+    "type": "singleselect",
+    "desc": "패키지 설정을 남길지 삭제할지 고르세요. <b>어느 쪽을 골라도 S3 데이터는 삭제되지 않습니다.</b> 데이터 공유 폴더(버킷과 <code>.rustfs.sys</code> 폴더)는 볼륨에 그대로 남으므로, 지우려면 삭제 후 공유 폴더나 그 안의 내용을 직접 삭제하세요.",
+    "subitems": [{
+      "key": "wizard_keep_data",
+      "desc": "<b>삭제만 하기.</b> 다시 설치할 때 쓸 수 있도록 설정, 액세스 키, 로그(/var/packages/rustfs/var)를 남깁니다.",
+      "defaultValue": true
+    }, {
+      "key": "wizard_delete_data",
+      "desc": "<b style=\"color: red\">패키지 데이터 모두 삭제 (복구 불가)</b> 설정, 액세스 키, 설치 설정, 서비스 로그(rustfs.log)를 지웁니다. 로그가 필요하면 먼저 백업하세요. 공유 폴더의 S3 데이터는 삭제되지 않습니다.",
+      "defaultValue": false
+    }]
+  }]
+}]

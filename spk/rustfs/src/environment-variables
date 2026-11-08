@@ -6,9 +6,10 @@
 #
 # Reference: https://github.com/rustfs/rustfs/blob/1.0.4/deploy/config/rustfs.env
 
-# Data directory (space separated list for multiple volumes).
-# Set to the shared folder chosen in the installation wizard.
-RUSTFS_VOLUMES=@SHARE_PATH@
+# Data directory: always the shared folder chosen in the install/upgrade
+# wizard (SHARE_PATH in /var/packages/rustfs/etc/installer-variables).
+# RUSTFS_VOLUMES set in this file is ignored. To use another folder, run the
+# upgrade wizard (reinstall the same SPK) and choose the new shared folder.
 
 # S3 API listen address
 RUSTFS_ADDRESS=:9200
