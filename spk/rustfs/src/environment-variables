@@ -1,0 +1,32 @@
+# RustFS server configuration (one KEY=VALUE per line, no shell expansion).
+# Lines starting with # and empty lines are ignored.
+# This file is kept on package upgrades; new defaults are installed as
+# environment-variables.new next to it.
+# Restart the package after editing.
+#
+# Reference: https://github.com/rustfs/rustfs/blob/1.0.4/deploy/config/rustfs.env
+
+# Data directory (space separated list for multiple volumes).
+# Set to the shared folder chosen in the installation wizard.
+RUSTFS_VOLUMES=@SHARE_PATH@
+
+# S3 API listen address
+RUSTFS_ADDRESS=:9200
+
+# Web console
+RUSTFS_CONSOLE_ENABLE=true
+RUSTFS_CONSOLE_ADDRESS=:9201
+
+# Higher drive timeouts for HDD based NAS volumes ("default" or "high_latency")
+RUSTFS_DRIVE_TIMEOUT_PROFILE=high_latency
+
+# Credentials are read from files created by the wizard:
+#   RUSTFS_ACCESS_KEY_FILE / RUSTFS_SECRET_KEY_FILE (in the package var folder)
+# Do not set RUSTFS_ACCESS_KEY / RUSTFS_SECRET_KEY here together with the files.
+
+# Optional examples:
+#RUSTFS_SERVER_DOMAINS=s3.example.com
+#RUSTFS_REGION=us-east-1
+#RUSTFS_TLS_PATH=/var/packages/rustfs/var/tls
+#RUSTFS_OBS_LOGGER_LEVEL=info
+#RUSTFS_OBS_LOG_DIRECTORY=/var/packages/rustfs/var/logs
