@@ -4,7 +4,7 @@
 # usage: scripts/update-version.sh <version>     e.g. scripts/update-version.sh 1.0.5
 #
 # Downloads the musl zips, verifies them against the upstream SHA256SUMS
-# and writes cross/rustfs/digests.
+# and writes cross/rustfs/digests (+ cross/rustfs-license/digests).
 set -eu
 
 VERSION="${1:?usage: $0 <version>}"
@@ -36,10 +36,24 @@ for arch in x86_64 aarch64; do
    } >> "${TMP}/digests"
 done
 
+# the release zips contain the binary only, the LICENSE comes from the release tag
+lic="rustfs-LICENSE-${VERSION}.txt"
+echo "downloading LICENSE (tag ${VERSION})"
+curl -fsSL -o "${TMP}/${lic}" "https://raw.githubusercontent.com/rustfs/rustfs/${VERSION}/LICENSE"
+{
+   echo "${lic} SHA1 $(sha1 "${TMP}/${lic}")"
+   echo "${lic} SHA256 $(sha256 "${TMP}/${lic}")"
+   echo "${lic} MD5 $(md5 "${TMP}/${lic}")"
+} > "${TMP}/digests-license"
+
 cp "${TMP}/digests" "${ROOT}/cross/rustfs/digests"
-sed -i.bak "s/^PKG_VERS = .*/PKG_VERS = ${VERSION}/" "${ROOT}/cross/rustfs/Makefile"
+cp "${TMP}/digests-license" "${ROOT}/cross/rustfs-license/digests"
+for pkg in rustfs rustfs-license; do
+   sed -i.bak "s/^PKG_VERS = .*/PKG_VERS = ${VERSION}/" "${ROOT}/cross/${pkg}/Makefile"
+   rm -f "${ROOT}/cross/${pkg}/Makefile.bak"
+done
 sed -i.bak -e "s/^SPK_VERS = .*/SPK_VERS = ${VERSION}/" -e "s/^SPK_REV = .*/SPK_REV = 1/" \
    -e "s|^CHANGELOG = .*|CHANGELOG = \"Update RustFS to ${VERSION}.<br/>Changelog: <a target=\\\\\"_blank\\\\\" href=\\\\\"https://github.com/rustfs/rustfs/releases/tag/${VERSION}\\\\\">https://github.com/rustfs/rustfs/releases/tag/${VERSION}</a>\"|" \
    "${ROOT}/spk/rustfs/Makefile"
-rm -f "${ROOT}/cross/rustfs/Makefile.bak" "${ROOT}/spk/rustfs/Makefile.bak"
+rm -f "${ROOT}/spk/rustfs/Makefile.bak"
 echo "updated to ${VERSION}"

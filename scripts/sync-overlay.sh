@@ -11,7 +11,7 @@ if [ ! -f "${SPKSRC}/mk/spksrc.spk.mk" ]; then
    exit 1
 fi
 
-for pkg in cross/rustfs spk/rustfs; do
+for pkg in cross/rustfs cross/rustfs-license spk/rustfs; do
    rm -rf "${SPKSRC:?}/${pkg}"
    mkdir -p "${SPKSRC}/${pkg}"
    cp -R "${ROOT}/${pkg}/." "${SPKSRC}/${pkg}/"
@@ -21,7 +21,7 @@ exclude="$(git -C "${SPKSRC}" rev-parse --git-path info/exclude 2>/dev/null || t
 if [ -n "${exclude}" ]; then
    case "${exclude}" in /*) ;; *) exclude="${SPKSRC}/${exclude}" ;; esac
    mkdir -p "$(dirname "${exclude}")"
-   for p in /cross/rustfs/ /spk/rustfs/; do
+   for p in /cross/rustfs/ /cross/rustfs-license/ /spk/rustfs/; do
       grep -qxF "${p}" "${exclude}" 2>/dev/null || echo "${p}" >> "${exclude}"
    done
 fi
