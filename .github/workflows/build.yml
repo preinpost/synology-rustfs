@@ -180,7 +180,7 @@ jobs:
 
           Unofficial, unsigned package. Verify the download with \`gh attestation verify <file> -R ${GITHUB_REPOSITORY}\` or \`sha256sum -c SHA256SUMS --ignore-missing\` and read the README before installing."
           if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release upload "${TAG}" -- *.spk SHA256SUMS --clobber --repo "${GITHUB_REPOSITORY}"
+            gh release upload "${TAG}" --clobber --repo "${GITHUB_REPOSITORY}" -- *.spk SHA256SUMS
           else
             gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --target "${SHA}" \
               --title "RustFS ${vers}" --notes "${notes}" -- *.spk SHA256SUMS
