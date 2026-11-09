@@ -1,10 +1,15 @@
 # synology-rustfs
 
+[English](README.md)
+
+> **비공식 커뮤니티 패키지이며 RustFS 및 Synology와 관련이 없습니다** (Unofficial community package, not affiliated with RustFS or Synology).
+
 [RustFS](https://github.com/rustfs/rustfs)(S3 호환 오브젝트 스토리지)를 Synology DSM 7.1 이상에서 돌리기 위한 **비공식** DSM 패키지(SPK)입니다.
 
 - RustFS 소스를 빌드하지 않습니다. upstream이 GitHub Release에 올린 **musl 정적 바이너리**(`rustfs-linux-{x86_64,aarch64}-musl-v<ver>.zip`)를 받아서 패키징합니다. 받은 파일은 `cross/rustfs/digests`(SHA1/SHA256/MD5)로 검증합니다.
 - 패키징은 [spksrc](https://github.com/SynoCommunity/spksrc) 프레임워크로 하고, 구조는 spksrc의 `spk/minio`를 따랐습니다.
 - Synology, SynoCommunity, RustFS 프로젝트 중 어느 쪽에서도 제공하거나 지원하는 패키지가 아닙니다.
+- 패키징한 릴리즈의 upstream RustFS `LICENSE`를 SPK 안 `share/doc/rustfs/LICENSE`(NAS에서는 `/var/packages/rustfs/target/share/doc/rustfs/LICENSE`)로 함께 배포합니다.
 
 | 항목 | 값 |
 |---|---|
@@ -137,12 +142,12 @@ cd synology-rustfs
 
 ./scripts/build.sh            # x64 + aarch64
 ./scripts/build.sh x64        # x64만
-ls -l dist/                   # rustfs_x64-7.1_1.0.4-2.spk ...
+ls -l dist/                   # rustfs_x64-7.1_1.0.4-3.spk ...
 ```
 
 `scripts/build.sh`가 하는 일:
 
-1. `scripts/sync-overlay.sh`로 `cross/rustfs`, `spk/rustfs`를 `spksrc/` 서브모듈 안에 복사합니다. 서브모듈의 `.git/info/exclude`에 등록해 두므로 서브모듈 상태는 깨끗하게 유지됩니다.
+1. `scripts/sync-overlay.sh`로 `cross/rustfs`, `cross/rustfs-license`, `spk/rustfs`를 `spksrc/` 서브모듈 안에 복사합니다. 서브모듈의 `.git/info/exclude`에 등록해 두므로 서브모듈 상태는 깨끗하게 유지됩니다.
 2. `ghcr.io/synocommunity/spksrc` 컨테이너에서 `make arch-<arch>-7.1`을 실행합니다. 빌드는 named volume `synology-rustfs-spksrc` 안에서 합니다. macOS 같은 대소문자 비구분 파일시스템을 bind mount하면 툴체인 압축 해제가 실패하기 때문입니다. 툴체인과 배포 파일은 이 볼륨에 캐시됩니다.
 3. 결과 SPK를 `dist/`로 복사합니다.
 
@@ -154,7 +159,7 @@ spksrc 컨테이너 안이나 CI에서 바로 돌리려면 `NO_DOCKER=1 ./script
 ./scripts/update-version.sh 1.0.5
 ```
 
-zip을 받아 upstream `SHA256SUMS`와 대조한 뒤 `cross/rustfs/digests`를 다시 만들고, `PKG_VERS` / `SPK_VERS` / `CHANGELOG`를 갱신하며 `SPK_REV`는 1로 되돌립니다. 패키징만 바꾼 경우에는 `spk/rustfs/Makefile`의 `SPK_REV`만 올리세요.
+zip을 받아 upstream `SHA256SUMS`와 대조한 뒤 `cross/rustfs/digests`(릴리즈 태그의 `LICENSE`로 `cross/rustfs-license/digests`도)를 다시 만들고, `PKG_VERS` / `SPK_VERS` / `CHANGELOG`를 갱신하며 `SPK_REV`는 1로 되돌립니다. 패키징만 바꾼 경우에는 `spk/rustfs/Makefile`의 `SPK_REV`만 올리세요.
 
 ### GitHub Actions
 
@@ -166,21 +171,24 @@ zip을 받아 upstream `SHA256SUMS`와 대조한 뒤 `cross/rustfs/digests`를 �
 ## 저장소 구조와 설계
 
 ```
-cross/rustfs/      upstream 바이너리 다운로드/설치 (PKG_DIST_ARCH 방식, digests)
-spk/rustfs/        SPK 정의 (Makefile, service-setup.sh, 위저드, .sc, 아이콘, 기본 설정)
-spksrc/            SynoCommunity/spksrc (git submodule, 커밋 고정)
-scripts/           build.sh, sync-overlay.sh, update-version.sh, make-icon.py
-.github/workflows/ CI
+cross/rustfs/         upstream 바이너리 다운로드/설치 (PKG_DIST_ARCH 방식, digests)
+cross/rustfs-license/ 릴리즈 태그의 upstream LICENSE (digests) -> share/doc/rustfs/LICENSE
+spk/rustfs/           SPK 정의 (Makefile, service-setup.sh, 위저드, .sc, 아이콘, 기본 설정)
+spksrc/               SynoCommunity/spksrc (git submodule, 커밋 고정)
+scripts/              build.sh, sync-overlay.sh, update-version.sh, make-icon.py
+.github/workflows/    CI
 ```
 
 spksrc는 fork하지 않고 **submodule + 오버레이 복사** 방식을 썼습니다.
 
-- 이 저장소에는 우리 파일(`cross/rustfs`, `spk/rustfs`)만 들어 있어 diff와 리뷰가 단순합니다. spksrc 전체 이력을 fork로 관리할 필요가 없습니다.
+- 이 저장소에는 우리 파일(`cross/rustfs*`, `spk/rustfs`)만 들어 있어 diff와 리뷰가 단순합니다. spksrc 전체 이력을 fork로 관리할 필요가 없습니다.
 - spksrc 버전은 submodule 커밋으로 고정해 빌드를 재현할 수 있고, `git submodule update --remote`로 올립니다.
 - 두 디렉터리는 spksrc 트리에서 쓰는 경로·형식(`../../mk/...` include) 그대로라서, 나중에 SynoCommunity로 옮길 때는 `cross/rustfs`, `spk/rustfs`를 spksrc fork에 복사해 PR하면 됩니다. 이때 `MAINTAINER`, 아이콘, `REQUIRED_MIN_DSM` 정책 등은 SynoCommunity 기준에 맞춰 조정해야 합니다.
 - 심볼릭 링크 대신 복사하는 이유: spksrc Makefile은 `../../mk`를 상대 경로로 include하는데, make는 물리 경로를 기준으로 하기 때문에 심볼릭 링크로 연결한 디렉터리에서는 경로가 깨집니다.
 
 ## 라이선스
 
-- RustFS: Apache-2.0 (upstream)
-- spksrc: BSD-3-Clause (submodule)
+- 이 저장소는 [Apache License 2.0](LICENSE)으로 배포합니다. [NOTICE](NOTICE)를 참고하세요.
+- `cross/`, `spk/`의 일부 파일은 [SynoCommunity/spksrc](https://github.com/SynoCommunity/spksrc)(BSD-3-Clause, submodule)에서 파생되었고, spksrc 저작권 표시는 [NOTICE](NOTICE)에 그대로 실었습니다.
+- RustFS는 저작자의 Apache-2.0 라이선스를 따릅니다. SPK는 수정하지 않은 공식 바이너리를 upstream `LICENSE`(`share/doc/rustfs/LICENSE`)와 함께 재배포합니다. RustFS 1.0.4 릴리즈에는 NOTICE 파일이나 서드파티 라이선스 목록이 없습니다.
+- RustFS, Synology/DSM은 각 소유자의 상표입니다. 이 프로젝트는 비공식입니다.
