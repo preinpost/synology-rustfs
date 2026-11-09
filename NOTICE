@@ -1,0 +1,61 @@
+synology-rustfs
+Copyright 2026 preinpost
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Unofficial community package. This project is not affiliated with, endorsed
+by, or supported by RustFS, Inc., Synology Inc. or SynoCommunity.
+
+-------------------------------------------------------------------------------
+spksrc
+-------------------------------------------------------------------------------
+
+Parts of cross/rustfs, cross/rustfs-license and spk/rustfs (Makefile layout,
+service-setup.sh, wizard and service configuration conventions, modelled on
+spksrc spk/minio) are derived from SynoCommunity/spksrc
+(https://github.com/SynoCommunity/spksrc), which is included as a git
+submodule (spksrc/) and is licensed under the BSD 3-Clause License:
+
+  Copyright (c) 2011, Sebastien Erard
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
+
+  * Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+  * Neither the name of the zebulon nor the names of its contributors may
+    be used to endorse or promote products derived from this software without
+    specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-------------------------------------------------------------------------------
+RustFS
+-------------------------------------------------------------------------------
+
+The SPK packages built from this repository redistribute the unmodified
+official RustFS release binaries (https://github.com/rustfs/rustfs), which are
+licensed under the Apache License, Version 2.0 (Copyright 2024-2026 RustFS,
+Inc.). The upstream LICENSE of the packaged release is installed in the SPK as
+share/doc/rustfs/LICENSE.
+
+-------------------------------------------------------------------------------
+Trademarks
+-------------------------------------------------------------------------------
+
+RustFS is a trademark of its respective owner. Synology and DSM are trademarks
+of Synology Inc. They are used here only to describe compatibility; their use
+does not imply any affiliation or endorsement.
