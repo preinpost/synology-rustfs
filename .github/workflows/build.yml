@@ -8,7 +8,9 @@ name: Build SPK
 #   when the Release for the current tag already exists. Pushes made with
 #   GITHUB_TOKEN do not trigger workflows, so the bot commit does not loop.
 # - workflow_dispatch: build the version in the repository (e.g. after a
-#   SPK_REV bump) and optionally publish its Release.
+#   SPK_REV bump) and optionally publish its Release. An existing Release is
+#   left alone unless force_rebuild is set; then the commit its tag points to
+#   is rebuilt and the Release assets are replaced.
 # - push of a v* tag: build that commit and publish its Release.
 on:
   workflow_dispatch:
@@ -17,6 +19,10 @@ on:
         description: "Publish a GitHub release with the SPK files"
         type: boolean
         default: true
+      force_rebuild:
+        description: "Rebuild the tagged commit and replace the assets of an existing Release"
+        type: boolean
+        default: false
   schedule:
     - cron: "17 3 * * *"
   push:
@@ -24,7 +30,7 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-spk
@@ -33,17 +39,20 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # bot commit of the upstream update
     outputs:
       tag: ${{ steps.ver.outputs.tag }}
       sha: ${{ steps.ver.outputs.sha }}
       build: ${{ steps.ver.outputs.build }}
       release: ${{ steps.ver.outputs.release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: ver
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_RELEASE: ${{ inputs.release }}
+          INPUT_FORCE_REBUILD: ${{ inputs.force_rebuild }}
         run: |
           set -eu
           current="$(sed -n 's/^PKG_VERS = //p' cross/rustfs/Makefile)"
@@ -73,15 +82,25 @@ jobs:
             echo "tag ${GITHUB_REF_NAME} does not match ${tag} from spk/rustfs/Makefile" >&2
             exit 1
           fi
-          if [ "${GITHUB_EVENT_NAME}" = "schedule" ] \
+          sha="$(git rev-parse HEAD)"
+          if [ "${GITHUB_EVENT_NAME}" != "push" ] \
             && gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            echo "release ${tag} already exists, nothing to do"
-            build=false
-            release=false
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${INPUT_FORCE_REBUILD}" = "true" ]; then
+              # rebuild what the tag points to, not whatever main is now
+              sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${tag}" --jq .sha)"
+              echo "release ${tag} exists, rebuilding ${sha} and replacing its assets"
+            elif [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+              echo "release ${tag} already exists, nothing to do"
+              build=false
+              release=false
+            else
+              echo "release ${tag} already exists, building without publishing (set force_rebuild to replace)"
+              release=false
+            fi
           fi
           {
             echo "tag=${tag}"
-            echo "sha=$(git rev-parse HEAD)"
+            echo "sha=${sha}"
             echo "build=${build}"
             echo "release=${release}"
           } >> "${GITHUB_OUTPUT}"
@@ -98,12 +117,12 @@ jobs:
       matrix:
         arch: [x64, aarch64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.check.outputs.sha }}
           submodules: true
       - name: Cache toolchains and distfiles
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: spksrc/distrib
           key: distrib-${{ matrix.arch }}-${{ needs.check.outputs.tag }}
@@ -115,7 +134,7 @@ jobs:
         run: |
           git config --global --add safe.directory '*'
           ./scripts/build.sh "${ARCH}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rustfs-${{ matrix.arch }}
           path: dist/*.spk
@@ -125,11 +144,26 @@ jobs:
     needs: [check, build]
     if: needs.check.outputs.release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum -- *.spk > SHA256SUMS
+          cat SHA256SUMS
+      # Attest the exact files uploaded below; nothing touches dist/ in between.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/*.spk
+            dist/SHA256SUMS
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -138,15 +172,13 @@ jobs:
         run: |
           set -eu
           cd dist
-          sha256sum -- *.spk > SHA256SUMS
-          cat SHA256SUMS
           vers="${TAG#v}"
           upstream="${vers%-*}"
           notes="RustFS ${upstream} SPK (package revision ${vers##*-}) for Synology DSM 7.1+ (x64, aarch64).
 
           Upstream release: https://github.com/rustfs/rustfs/releases/tag/${upstream}
 
-          Unofficial, unsigned package. Verify the download with \`sha256sum -c SHA256SUMS --ignore-missing\` and read the README before installing."
+          Unofficial, unsigned package. Verify the download with \`gh attestation verify <file> -R ${GITHUB_REPOSITORY}\` or \`sha256sum -c SHA256SUMS --ignore-missing\` and read the README before installing."
           if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release upload "${TAG}" -- *.spk SHA256SUMS --clobber --repo "${GITHUB_REPOSITORY}"
           else

@@ -27,7 +27,7 @@ An **unofficial** DSM package (SPK) to run [RustFS](https://github.com/rustfs/ru
 2. Download the matching file from the [Releases page](https://github.com/preinpost/synology-rustfs/releases) (or from `dist/` if you built it yourself). Release tags are `v<RustFS version>-<package revision>`, e.g. `v1.0.4-3`; the newest one is marked *Latest*.
    - `rustfs_x64-7.1_<ver>-<rev>.spk`
    - `rustfs_aarch64-7.1_<ver>-<rev>.spk`
-   - Verify it against the release `SHA256SUMS`: `sha256sum -c SHA256SUMS --ignore-missing`
+   - Verify it before installing, see [Verifying a download](#verifying-a-download).
 3. In DSM **Package Center → Manual Install**, select the SPK.
    - If an "unknown publisher" warning appears, read the warning above before continuing.
 4. Values for the install wizard:
@@ -168,8 +168,26 @@ Downloads the zips, verifies them against the upstream `SHA256SUMS`, regenerates
 Release tags follow `v<SPK_VERS>-<SPK_REV>` from `spk/rustfs/Makefile` (e.g. `v1.0.4-3`). Each Release contains the x64 and aarch64 SPKs and `SHA256SUMS`.
 
 - **Schedule** (daily, automatic update): checks the latest stable release of `rustfs/rustfs` (prereleases are ignored). If it is newer than `PKG_VERS`, the workflow runs `scripts/update-version.sh` (digests, `PKG_VERS`, `SPK_VERS`, `CHANGELOG`, `SPK_REV` reset to 1), commits the change to `main` as `github-actions[bot]`, then builds and publishes the Release in the same run. If the Release for the current tag already exists, nothing happens. The bot push uses `GITHUB_TOKEN`, so it does not trigger another workflow run.
-- **Manual run** (`workflow_dispatch`): builds the version in the repository and, unless `release` is unchecked, creates or updates its Release. Use this after a packaging change (bump `SPK_REV`, commit, run the workflow).
+- **Manual run** (`workflow_dispatch`): builds the version in the repository and, unless `release` is unchecked, creates its Release. Use this after a packaging change (bump `SPK_REV`, commit, run the workflow). If the Release already exists it is left alone, unless `force_rebuild` is checked: then the commit the tag points to is rebuilt and the Release assets are replaced (`gh workflow run build.yml -f force_rebuild=true`).
 - **Tag push** (`v*`): builds the tagged commit and publishes its Release. The tag must match `SPK_VERS`/`SPK_REV` in that commit, e.g. `git tag v1.0.4-4 && git push origin v1.0.4-4`.
+
+The release job creates a [build provenance attestation](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations) for each SPK and for `SHA256SUMS`, for the exact files it uploads.
+
+If the repository owner enables [Immutable Releases](https://docs.github.com/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases), published assets can no longer be replaced, so `force_rebuild` will fail for existing Releases. That setting is left to the owner.
+
+## Verifying a download
+
+DSM does not check any of this; the SPK is unsigned and Package Center installs it as is. These checks are for you to run manually before installing.
+
+```sh
+# provenance: the file was built by this repository's workflow (needs GitHub CLI)
+gh attestation verify rustfs_x64-7.1_1.0.4-3.spk -R preinpost/synology-rustfs
+
+# checksums: download SHA256SUMS from the same Release
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+`gh attestation verify` should report the workflow `.github/workflows/build.yml` of `preinpost/synology-rustfs` as the signer. `SHA256SUMS` only detects corrupted or mismatched downloads; it comes from the same Release, so it is not proof of origin on its own.
 
 ## Repository layout and design
 

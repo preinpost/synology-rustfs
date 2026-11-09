@@ -27,7 +27,7 @@
 2. [Releases 페이지](https://github.com/preinpost/synology-rustfs/releases)(또는 직접 빌드한 `dist/`)에서 맞는 파일을 받습니다. Release 태그는 `v<RustFS 버전>-<패키지 리비전>` 형식(예: `v1.0.4-3`)이며, 가장 최신 것이 *Latest*로 표시됩니다.
    - `rustfs_x64-7.1_<ver>-<rev>.spk`
    - `rustfs_aarch64-7.1_<ver>-<rev>.spk`
-   - Release의 `SHA256SUMS`와 대조해 보세요: `sha256sum -c SHA256SUMS --ignore-missing`
+   - 설치 전에 검증하세요. [다운로드 검증](#다운로드-검증)을 참고하세요.
 3. DSM **패키지 센터 → 수동 설치**에서 SPK를 고릅니다.
    - "알 수 없는 게시자" 경고가 뜨면 위 경고를 읽어 보고 진행합니다.
 4. 설치 위저드에 입력할 값:
@@ -168,8 +168,26 @@ zip을 받아 upstream `SHA256SUMS`와 대조한 뒤 `cross/rustfs/digests`(릴�
 Release 태그는 `spk/rustfs/Makefile`의 `v<SPK_VERS>-<SPK_REV>`(예: `v1.0.4-3`)입니다. 각 Release에는 x64·aarch64 SPK와 `SHA256SUMS`가 첨부됩니다.
 
 - **스케줄**(매일, 자동 업데이트): `rustfs/rustfs`의 최신 안정 릴리즈(prerelease 제외)를 확인합니다. `PKG_VERS`보다 새 버전이면 `scripts/update-version.sh`로 digests·`PKG_VERS`·`SPK_VERS`·`CHANGELOG`를 갱신하고 `SPK_REV`를 1로 되돌린 뒤 `github-actions[bot]`으로 `main`에 커밋·push하고, 같은 실행 안에서 빌드와 Release 생성까지 합니다. 현재 태그의 Release가 이미 있으면 아무것도 하지 않습니다. 봇 push는 `GITHUB_TOKEN`을 쓰므로 워크플로를 다시 트리거하지 않습니다.
-- **수동 실행**(`workflow_dispatch`): 저장소에 있는 버전을 빌드하고, `release`를 끄지 않았다면 해당 Release를 만들거나 갱신합니다. 패키징만 바꾼 경우(`SPK_REV` 증가 → 커밋) 이렇게 실행하세요.
+- **수동 실행**(`workflow_dispatch`): 저장소에 있는 버전을 빌드하고, `release`를 끄지 않았다면 해당 Release를 만듭니다. 패키징만 바꾼 경우(`SPK_REV` 증가 → 커밋) 이렇게 실행하세요. Release가 이미 있으면 건드리지 않으며, `force_rebuild`를 켜면 태그가 가리키는 커밋을 다시 빌드해 Release 자산을 교체합니다(`gh workflow run build.yml -f force_rebuild=true`).
 - **태그 push**(`v*`): 태그가 가리키는 커밋을 빌드해 Release를 만듭니다. 태그는 그 커밋의 `SPK_VERS`/`SPK_REV`와 같아야 합니다. 예: `git tag v1.0.4-4 && git push origin v1.0.4-4`.
+
+release job은 업로드하는 파일 그대로 각 SPK와 `SHA256SUMS`에 대해 [build provenance attestation](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations)을 만듭니다.
+
+저장소 소유자가 [Immutable Releases](https://docs.github.com/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases)를 켜면 게시된 자산을 바꿀 수 없으므로, 기존 Release에 대한 `force_rebuild`는 실패합니다. 이 설정은 소유자가 결정합니다.
+
+## 다운로드 검증
+
+DSM은 이 검증을 하지 않습니다. SPK는 서명되지 않았고 패키지 센터는 그대로 설치합니다. 아래는 설치 전에 직접 확인하기 위한 절차입니다.
+
+```sh
+# 출처(provenance): 이 저장소의 워크플로가 빌드한 파일인지 확인 (GitHub CLI 필요)
+gh attestation verify rustfs_x64-7.1_1.0.4-3.spk -R preinpost/synology-rustfs
+
+# 체크섬: 같은 Release의 SHA256SUMS를 받아서
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+`gh attestation verify`는 `preinpost/synology-rustfs`의 `.github/workflows/build.yml` 워크플로를 서명자로 보여 줘야 합니다. `SHA256SUMS`는 같은 Release에서 받는 파일이므로 손상·잘못 받은 파일을 걸러낼 뿐, 그것만으로 출처를 증명하지는 않습니다.
 
 ## 저장소 구조와 설계
 
