@@ -24,10 +24,10 @@
 > 이 SPK는 Synology 패키지 센터 저장소에서 받는 패키지가 아니고 서명도 없습니다. 설치하면 RustFS 바이너리와 설치 스크립트가 NAS에서 실행됩니다. 이 저장소의 소스(`spk/rustfs/src/service-setup.sh`, 위저드)와 빌드 과정을 직접 확인했거나, 직접 빌드한 SPK만 설치하세요. 패키지 서비스는 root가 아니라 `sc-rustfs` 계정으로 돕니다.
 
 1. NAS 아키텍처를 확인합니다. 제어판 → 정보 센터에서 CPU 모델을 보거나, SSH에서 `uname -m`을 실행합니다(`x86_64` → x64, `aarch64` → aarch64).
-2. Release 페이지(또는 직접 빌드한 `dist/`)에서 맞는 파일을 받습니다.
+2. [Releases 페이지](https://github.com/preinpost/synology-rustfs/releases)(또는 직접 빌드한 `dist/`)에서 맞는 파일을 받습니다. Release 태그는 `v<RustFS 버전>-<패키지 리비전>` 형식(예: `v1.0.4-3`)이며, 가장 최신 것이 *Latest*로 표시됩니다.
    - `rustfs_x64-7.1_<ver>-<rev>.spk`
    - `rustfs_aarch64-7.1_<ver>-<rev>.spk`
-   - Release의 `SHA256SUMS`와 대조해 보세요: `sha256sum -c SHA256SUMS`
+   - Release의 `SHA256SUMS`와 대조해 보세요: `sha256sum -c SHA256SUMS --ignore-missing`
 3. DSM **패키지 센터 → 수동 설치**에서 SPK를 고릅니다.
    - "알 수 없는 게시자" 경고가 뜨면 위 경고를 읽어 보고 진행합니다.
 4. 설치 위저드에 입력할 값:
@@ -165,8 +165,11 @@ zip을 받아 upstream `SHA256SUMS`와 대조한 뒤 `cross/rustfs/digests`(릴�
 
 `.github/workflows/build.yml`
 
-- **수동 실행**(`workflow_dispatch`): 저장소에 있는 버전 또는 입력한 upstream 버전으로 x64/aarch64 SPK를 빌드합니다. 아티팩트로 올리고, 선택하면 Release(`v<ver>`)도 만듭니다.
-- **스케줄**(매일): `rustfs/rustfs`의 최신 릴리즈 태그를 확인합니다. 이 저장소에 같은 버전의 Release가 아직 없으면 빌드해서 Release에 SPK와 `SHA256SUMS`를 올립니다. 버전 변경을 저장소에 커밋하지는 않습니다(빌드할 때만 `update-version.sh` 적용).
+Release 태그는 `spk/rustfs/Makefile`의 `v<SPK_VERS>-<SPK_REV>`(예: `v1.0.4-3`)입니다. 각 Release에는 x64·aarch64 SPK와 `SHA256SUMS`가 첨부됩니다.
+
+- **스케줄**(매일, 자동 업데이트): `rustfs/rustfs`의 최신 안정 릴리즈(prerelease 제외)를 확인합니다. `PKG_VERS`보다 새 버전이면 `scripts/update-version.sh`로 digests·`PKG_VERS`·`SPK_VERS`·`CHANGELOG`를 갱신하고 `SPK_REV`를 1로 되돌린 뒤 `github-actions[bot]`으로 `main`에 커밋·push하고, 같은 실행 안에서 빌드와 Release 생성까지 합니다. 현재 태그의 Release가 이미 있으면 아무것도 하지 않습니다. 봇 push는 `GITHUB_TOKEN`을 쓰므로 워크플로를 다시 트리거하지 않습니다.
+- **수동 실행**(`workflow_dispatch`): 저장소에 있는 버전을 빌드하고, `release`를 끄지 않았다면 해당 Release를 만들거나 갱신합니다. 패키징만 바꾼 경우(`SPK_REV` 증가 → 커밋) 이렇게 실행하세요.
+- **태그 push**(`v*`): 태그가 가리키는 커밋을 빌드해 Release를 만듭니다. 태그는 그 커밋의 `SPK_VERS`/`SPK_REV`와 같아야 합니다. 예: `git tag v1.0.4-4 && git push origin v1.0.4-4`.
 
 ## 저장소 구조와 설계
 

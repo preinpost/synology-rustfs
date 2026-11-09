@@ -1,21 +1,27 @@
 name: Build SPK
 
-# - workflow_dispatch: build the version in the repository (or a given upstream version)
-# - schedule: check daily for a new upstream RustFS release and build it when
-#   no matching GitHub release exists in this repository yet
+# Release tags are v<SPK_VERS>-<SPK_REV>, e.g. v1.0.4-3.
+#
+# - schedule: check daily for a new stable upstream RustFS release. A newer
+#   version is applied with scripts/update-version.sh, committed to main by
+#   github-actions[bot], built and released in the same run. Nothing happens
+#   when the Release for the current tag already exists. Pushes made with
+#   GITHUB_TOKEN do not trigger workflows, so the bot commit does not loop.
+# - workflow_dispatch: build the version in the repository (e.g. after a
+#   SPK_REV bump) and optionally publish its Release.
+# - push of a v* tag: build that commit and publish its Release.
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "RustFS upstream version (empty = version in cross/rustfs/Makefile)"
-        required: false
-        default: ""
       release:
         description: "Publish a GitHub release with the SPK files"
         type: boolean
         default: true
   schedule:
     - cron: "17 3 * * *"
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -28,7 +34,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
+      sha: ${{ steps.ver.outputs.sha }}
       build: ${{ steps.ver.outputs.build }}
       release: ${{ steps.ver.outputs.release }}
     steps:
@@ -36,32 +43,49 @@ jobs:
       - id: ver
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_VERSION: ${{ inputs.version }}
           INPUT_RELEASE: ${{ inputs.release }}
         run: |
           set -eu
+          current="$(sed -n 's/^PKG_VERS = //p' cross/rustfs/Makefile)"
+          build=true
+          release=true
           if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
-            version="$(gh release view --repo rustfs/rustfs --json tagName --jq .tagName)"
-            version="${version#v}"
-            release=true
-            if gh release view "v${version}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-              echo "release v${version} already exists, nothing to do"
-              build=false
-            else
-              build=true
+            # the "latest" release excludes prereleases and drafts
+            upstream="$(gh release view --repo rustfs/rustfs --json tagName --jq .tagName)"
+            upstream="${upstream#v}"
+            newest="$(printf '%s\n%s\n' "${current}" "${upstream}" | sort -V | tail -n1)"
+            if [ "${upstream}" != "${current}" ] && [ "${newest}" = "${upstream}" ]; then
+              echo "updating ${current} -> ${upstream}"
+              ./scripts/update-version.sh "${upstream}"
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add cross spk
+              git commit -m "rustfs ${upstream}-1: update to upstream ${upstream}"
+              git push origin "HEAD:${GITHUB_REF_NAME}"
             fi
-          else
-            version="${INPUT_VERSION}"
-            [ -n "${version}" ] || version="$(sed -n 's/^PKG_VERS = //p' cross/rustfs/Makefile)"
+          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             release="${INPUT_RELEASE}"
-            build=true
+          fi
+          vers="$(sed -n 's/^SPK_VERS = //p' spk/rustfs/Makefile)"
+          rev="$(sed -n 's/^SPK_REV = //p' spk/rustfs/Makefile)"
+          tag="v${vers}-${rev}"
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_NAME}" != "${tag}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match ${tag} from spk/rustfs/Makefile" >&2
+            exit 1
+          fi
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ] \
+            && gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "release ${tag} already exists, nothing to do"
+            build=false
+            release=false
           fi
           {
-            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "sha=$(git rev-parse HEAD)"
             echo "build=${build}"
             echo "release=${release}"
           } >> "${GITHUB_OUTPUT}"
-          echo "version=${version} build=${build} release=${release}"
+          echo "tag=${tag} build=${build} release=${release}"
 
   build:
     needs: check
@@ -76,26 +100,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.check.outputs.sha }}
           submodules: true
-      - name: Update to requested version
-        env:
-          VERSION: ${{ needs.check.outputs.version }}
-        run: |
-          current="$(sed -n 's/^PKG_VERS = //p' cross/rustfs/Makefile)"
-          if [ "${VERSION}" != "${current}" ]; then
-            ./scripts/update-version.sh "${VERSION}"
-          fi
-      - name: Cache distfiles
+      - name: Cache toolchains and distfiles
         uses: actions/cache@v4
         with:
-          path: |
-            spksrc/distrib
-          key: distrib-${{ matrix.arch }}-${{ needs.check.outputs.version }}
+          path: spksrc/distrib
+          key: distrib-${{ matrix.arch }}-${{ needs.check.outputs.tag }}
           restore-keys: distrib-${{ matrix.arch }}-
       - name: Build
         env:
           NO_DOCKER: "1"
-        run: ./scripts/build.sh ${{ matrix.arch }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          git config --global --add safe.directory '*'
+          ./scripts/build.sh "${ARCH}"
       - uses: actions/upload-artifact@v4
         with:
           name: rustfs-${{ matrix.arch }}
@@ -114,18 +133,23 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.check.outputs.version }}
+          TAG: ${{ needs.check.outputs.tag }}
+          SHA: ${{ needs.check.outputs.sha }}
         run: |
           set -eu
           cd dist
-          sha256sum ./*.spk > SHA256SUMS
-          tag="v${VERSION}"
-          notes="RustFS ${VERSION} SPK for Synology DSM 7.1+ (x64, aarch64).
-          Upstream release: https://github.com/rustfs/rustfs/releases/tag/${VERSION}
-          Unofficial package, see README for installation notes."
-          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release upload "${tag}" ./*.spk SHA256SUMS --clobber --repo "${GITHUB_REPOSITORY}"
+          sha256sum -- *.spk > SHA256SUMS
+          cat SHA256SUMS
+          vers="${TAG#v}"
+          upstream="${vers%-*}"
+          notes="RustFS ${upstream} SPK (package revision ${vers##*-}) for Synology DSM 7.1+ (x64, aarch64).
+
+          Upstream release: https://github.com/rustfs/rustfs/releases/tag/${upstream}
+
+          Unofficial, unsigned package. Verify the download with \`sha256sum -c SHA256SUMS --ignore-missing\` and read the README before installing."
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" -- *.spk SHA256SUMS --clobber --repo "${GITHUB_REPOSITORY}"
           else
-            gh release create "${tag}" ./*.spk SHA256SUMS --repo "${GITHUB_REPOSITORY}" \
-              --target "${GITHUB_SHA}" --title "RustFS ${VERSION}" --notes "${notes}"
+            gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --target "${SHA}" \
+              --title "RustFS ${vers}" --notes "${notes}" -- *.spk SHA256SUMS
           fi

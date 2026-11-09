@@ -24,10 +24,10 @@ An **unofficial** DSM package (SPK) to run [RustFS](https://github.com/rustfs/ru
 > This SPK does not come from the Synology Package Center repository and is not signed. Installing it runs the RustFS binary and the installer scripts on your NAS. Only install it if you have reviewed the sources in this repository (`spk/rustfs/src/service-setup.sh`, the wizards) and the build process, or if you built the SPK yourself. The package service runs as the `sc-rustfs` account, not as root.
 
 1. Check the NAS architecture: look at the CPU model in Control Panel → Info Center, or run `uname -m` over SSH (`x86_64` → x64, `aarch64` → aarch64).
-2. Download the matching file from the Releases page (or from `dist/` if you built it yourself).
+2. Download the matching file from the [Releases page](https://github.com/preinpost/synology-rustfs/releases) (or from `dist/` if you built it yourself). Release tags are `v<RustFS version>-<package revision>`, e.g. `v1.0.4-3`; the newest one is marked *Latest*.
    - `rustfs_x64-7.1_<ver>-<rev>.spk`
    - `rustfs_aarch64-7.1_<ver>-<rev>.spk`
-   - Verify it against the release `SHA256SUMS`: `sha256sum -c SHA256SUMS`
+   - Verify it against the release `SHA256SUMS`: `sha256sum -c SHA256SUMS --ignore-missing`
 3. In DSM **Package Center → Manual Install**, select the SPK.
    - If an "unknown publisher" warning appears, read the warning above before continuing.
 4. Values for the install wizard:
@@ -165,8 +165,11 @@ Downloads the zips, verifies them against the upstream `SHA256SUMS`, regenerates
 
 `.github/workflows/build.yml`
 
-- **Manual run** (`workflow_dispatch`): builds x64/aarch64 SPKs for the version in the repository or for an upstream version given as input. Uploads them as artifacts and optionally creates a Release (`v<ver>`).
-- **Schedule** (daily): checks the latest release tag of `rustfs/rustfs`. If this repository has no Release for that version yet, it builds and uploads the SPKs and `SHA256SUMS` to a Release. The version change is not committed to the repository (`update-version.sh` is only applied during the build).
+Release tags follow `v<SPK_VERS>-<SPK_REV>` from `spk/rustfs/Makefile` (e.g. `v1.0.4-3`). Each Release contains the x64 and aarch64 SPKs and `SHA256SUMS`.
+
+- **Schedule** (daily, automatic update): checks the latest stable release of `rustfs/rustfs` (prereleases are ignored). If it is newer than `PKG_VERS`, the workflow runs `scripts/update-version.sh` (digests, `PKG_VERS`, `SPK_VERS`, `CHANGELOG`, `SPK_REV` reset to 1), commits the change to `main` as `github-actions[bot]`, then builds and publishes the Release in the same run. If the Release for the current tag already exists, nothing happens. The bot push uses `GITHUB_TOKEN`, so it does not trigger another workflow run.
+- **Manual run** (`workflow_dispatch`): builds the version in the repository and, unless `release` is unchecked, creates or updates its Release. Use this after a packaging change (bump `SPK_REV`, commit, run the workflow).
+- **Tag push** (`v*`): builds the tagged commit and publishes its Release. The tag must match `SPK_VERS`/`SPK_REV` in that commit, e.g. `git tag v1.0.4-4 && git push origin v1.0.4-4`.
 
 ## Repository layout and design
 
