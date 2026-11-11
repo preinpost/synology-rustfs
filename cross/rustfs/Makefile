@@ -1,5 +1,5 @@
 PKG_NAME = rustfs
-PKG_VERS = 1.0.4
+PKG_VERS = 1.0.5
 PKG_EXT = zip
 PKG_DIST_NAME = $(PKG_NAME)-linux-$(PKG_DIST_ARCH)-musl-v$(PKG_VERS).$(PKG_EXT)
 PKG_DIST_SITE = https://github.com/rustfs/rustfs/releases/download/$(PKG_VERS)

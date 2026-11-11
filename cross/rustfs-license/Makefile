@@ -1,5 +1,5 @@
 PKG_NAME = rustfs-license
-PKG_VERS = 1.0.4
+PKG_VERS = 1.0.5
 PKG_EXT = txt
 # the upstream release zips contain the binary only, take the LICENSE of the release tag
 PKG_DIST_NAME = LICENSE
